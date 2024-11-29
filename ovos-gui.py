@@ -1,160 +1,237 @@
 import flet as ft
-import requests
 import datetime
 import time
 import threading
-import logging
 import json
+import os
 from websocket import create_connection
 
-# Background image
-WALLPAPER = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png?text=Achtergrond+1"
+# Achtergrondafbeelding
+ACHTERGROND_AFBEELDING = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png?text=Achtergrond+1"
 
-# Connect to OVOS-GUI WebSocket
+# Gedeelde structuur om berichten per namespace op te slaan
+message_store = {}
+
+# Verbinden met OVOS-GUI WebSocket
 def connect_to_ovos_gui():
     try:
-        ws = create_connection("ws://localhost:18181/gui")  # Use the correct host, port, and route
-        print("Connected to OVOS-GUI WebSocket")
+        ws = create_connection("ws://localhost:18181/gui")  # Gebruik de juiste host, poort en route
+        print("Verbonden met OVOS-GUI WebSocket")
         return ws
     except Exception as e:
-        print(f"Error connecting to OVOS-GUI: {e}")
+        print(f"Fout bij verbinden met OVOS-GUI: {e}")
         return None
 
 
-# General processing of GUI messages
-def process_gui_message(data, page, component_map):
-    msg_type = data.get("type")
-    namespace = data.get("namespace")
-
-    if msg_type == "mycroft.session.set":
-        session_data = data.get("data", {})
-        handle_session_set(namespace, session_data, component_map, page)
-
-    elif msg_type == "mycroft.events.triggered":
-        event_name = data.get("event_name")
-        parameters = data.get("data", {})
-        handle_events_triggered(event_name, parameters, component_map, page)
-
-    elif msg_type == "mycroft.gui.list.insert":
-        if namespace == "hallo_flet":  # Check if the correct namespace is used
-            page_name = data.get("data", [{}])[0].get("page")
-            if page_name == "hello_world":
-                # This should load the 'hello_world' page
-                show_hello_world_page(page, f"{page_name}")
-                
-        elif namespace == "skill-ovos-date-time.openvoiceos":  # Specific skill
-            page_name = data.get("data", [{}])[0].get("page", "unknown")
-            show_generic_page(page, "OVOS Date-Time Skill", data)
+def log_message(message):
+    """
+    Logt berichten naar de terminal.
+    """
+    print(message)
 
 
+def construct_url(namespace: str, page_name: str) -> str:
+    """
+    Construeert de URL op basis van het gegeven namespace en page_name.
+    """
+    user_home = os.path.expanduser("~")  # Haal de home directory op
+    url = os.path.join(user_home, ".cache", "ovos_gui", namespace, "qt5", f"{page_name}.py")
+    return url
 
-def handle_session_set(namespace, session_data, component_map, page):
-    if namespace in component_map:
-        handler = component_map[namespace].get("session_set")
-        if handler:
-            handler(session_data, page)
-
-def handle_events_triggered(event_name, parameters, component_map, page):
-    # General event handlers can be added here
-    if event_name == "page_gained_focus":
-        focus_page = parameters.get("number", 0)
-        print(f"Focus shifted to page {focus_page}")
-        # Add logic here to handle the focused page
-    # Add more event handlers as needed
-
-def handle_list_insert(data, component_map, page):
-    namespace = data.get("namespace")
-    values = data.get("values", [])
-    if namespace in component_map:
-        handler = component_map[namespace].get("list_insert")
-        if handler:
-            handler(values, page)
-
-# Listen to GUI WebSocket
-def listen_to_ovos_gui(ws, page, component_map):
+def process_gui_message(data, page, message_store):
     try:
-        while True:
-            response = ws.recv()  # Receive messages from the WebSocket
-            if response:
-                data = json.loads(response)
-                print("Received message:", data)
-                process_gui_message(data, page, component_map)
+        msg_type = data.get("type")
+        namespace = data.get("namespace")
+        payload = data.get("data", {})
+        property_name = data.get("property")
+        position = data.get("position")
+        values = data.get("values")
+
+        log_message(f"Inkomend bericht: {msg_type}")
+        log_message(f"Volledige data: {json.dumps(data)}")
+
+        if not namespace:
+            log_message("Namespace ontbreekt, bericht genegeerd.")
+            return
+
+        # Verwerk "mycroft.session.set"
+        if msg_type == "mycroft.session.set":
+            for key, value in payload.items():
+                if value:  # Negeer lege waarden
+                    message_store.setdefault(namespace, {})[key] = value
+                    log_message(f"Opgeslagen in '{namespace}': {key} = {value}")
+
+                    # Update view als de huidige pagina overeenkomt met de namespace
+                    if page.route == f"/{namespace}":
+                        page.views[-1].controls[1].value = f"Ontvangen: {key} = {value}"
+                        page.update()
+
+        # Verwerk "mycroft.session.delete"
+        elif msg_type == "mycroft.session.delete" and property_name:
+            if namespace in message_store and property_name in message_store[namespace]:
+                del message_store[namespace][property_name]
+                log_message(f"Verwijderd uit '{namespace}': {property_name}")
+
+                if page.route == f"/{namespace}":
+                    page.views[-1].controls[1].value = f"Verwijderd: {property_name}"
+                    page.update()
+
+        # Verwerk "mycroft.session.list.insert"
+        elif msg_type == "mycroft.session.list.insert" and isinstance(values, list):
+            list_data = message_store.setdefault(namespace, {}).setdefault(property_name, [])
+            for i, item in enumerate(values):
+                insert_position = position + i if position is not None else len(list_data)
+                list_data.insert(insert_position, item)
+                log_message(f"Ingevoegd in '{namespace}.{property_name}' op positie {insert_position}: {item}")
+
+        # Verwerk "mycroft.session.list.update"
+        elif msg_type == "mycroft.session.list.update" and isinstance(values, list):
+            list_data = message_store.get(namespace, {}).get(property_name, [])
+            for i, item in enumerate(values):
+                update_position = position + i if position is not None else i
+                if update_position < len(list_data):
+                    list_data[update_position] = item
+                    log_message(f"Bijgewerkt in '{namespace}.{property_name}' op positie {update_position}: {item}")
+                else:
+                    log_message(f"Waarschuwing: Geen item op positie {update_position} in '{namespace}.{property_name}'")
+
+        # Verwerk "mycroft.session.list.move"
+        elif msg_type == "mycroft.session.list.move":
+            list_data = message_store.get(namespace, {}).get(property_name, [])
+            from_pos = data.get("from")
+            to_pos = data.get("to")
+            items_number = data.get("items_number", 1)
+            if from_pos is not None and to_pos is not None:
+                for _ in range(items_number):
+                    if from_pos < len(list_data):
+                        item = list_data.pop(from_pos)
+                        list_data.insert(to_pos, item)
+                        log_message(f"Verplaatst in '{namespace}.{property_name}' van {from_pos} naar {to_pos}: {item}")
+                        to_pos += 1
+
+        # Verwerk "mycroft.session.list.remove"
+        elif msg_type == "mycroft.session.list.remove":
+            list_data = message_store.get(namespace, {}).get(property_name, [])
+            if position is not None:
+                items_number = data.get("items_number", 1)
+                for _ in range(items_number):
+                    if position < len(list_data):
+                        removed_item = list_data.pop(position)
+                        log_message(f"Verwijderd uit '{namespace}.{property_name}' op positie {position}: {removed_item}")
+
+        # Verwerk "mycroft.gui.list.insert"
+        elif msg_type == "mycroft.gui.list.insert" and isinstance(payload, list):
+            for item in payload:
+                page_name = item.get("page")
+                url = item.get("url")
+
+                if url is None and page_name:
+                    url = construct_url(namespace, page_name)
+                    log_message(f"Geconstrueerde URL: {url}")
+                    show_constructed_url_page(page, namespace, page_name, message_store)
+                elif url:
+                    log_message(f"Gevonden URL: {url}")
+                    show_constructed_url_page(page, namespace, page_name, message_store)
+
+        else:
+            log_message(f"Onbekend of niet-ondersteund berichttype: {msg_type}")
+
     except Exception as e:
-        print(f"Error receiving message: {e}")
+        log_message(f"Fout bij verwerken van bericht: {e}")
 
-# Send an event to OVOS-GUI
-def send_focus_event(ws, namespace, page_index):
-    if ws:
-        message = {
-            "type": "mycroft.events.triggered",
-            "namespace": namespace,
-            "event_name": "page_gained_focus",
-            "data": {"number": page_index}
-        }
-        ws.send(json.dumps(message))
 
-# Function to show a generic page
-def show_generic_page(page, title, message, extra_data=None):
-    """Displays a generic page with dynamic data."""
-    data_controls = []
-    if extra_data:
-        for key, value in extra_data.items():
-            data_controls.append(ft.Text(f"{key}: {value}", size=18))
+def show_constructed_url_page(page, namespace, page_name, message_store):
+    """
+    Toont een pagina gebaseerd op de geconstrueerde URL en de message_store.
+    """
+    # Voeg .py toe aan de geconstrueerde URL
+    url = construct_url(namespace, page_name)
+    log_message(f"Probeer pagina te laden van URL: {url}")
 
-    new_view = ft.View(
-        f"/{title.lower()}",
+    try:
+        # Controleer of het bestand bestaat
+        if not os.path.exists(url):
+            log_message(f"Bestand niet gevonden: {url}")
+            raise FileNotFoundError
+
+        # Dynamisch importeren van de view-module
+        log_message(f"Bestand gevonden: {url}, probeer inhoud te laden als module.")
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("dynamic_view", url)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)  # Voer het bestand uit als een Python-module
+
+        # Controleer of de module de verwachte 'get_view' functie bevat
+        if hasattr(module, "get_view"):
+            log_message(f"Functie 'get_view' gevonden in {url}, probeer view te genereren.")
+            constructed_view = module.get_view(page, message_store)  # Geef de message_store door
+            log_message(f"View succesvol gegenereerd vanuit {url}.")
+
+            page.views.clear()  # Verwijder huidige views
+            page.views.append(constructed_view)  # Voeg de nieuwe view toe
+            page.update()  # Update de pagina
+            log_message(f"View succesvol geladen voor {url}")
+        else:
+            log_message(f"Functie 'get_view' niet gevonden in {url}")
+            raise AttributeError(f"{url} bevat geen 'get_view' functie.")
+
+    except FileNotFoundError:
+        # Log en toon foutpagina als bestand niet gevonden is
+        log_message(f"Error: Bestand niet gevonden voor URL: {url}")
+        show_error_page(page, f"Kan de pagina niet laden: {url}")
+
+    except AttributeError as e:
+        # Log en toon foutpagina als de module niet de verwachte functie bevat
+        log_message(f"Error: {e}")
+        show_error_page(page, f"Onjuiste inhoud in {url}: {e}")
+
+    except Exception as e:
+        # Log en toon foutpagina voor andere fouten
+        log_message(f"Onverwachte fout bij het laden van URL {url}: {e}")
+        show_error_page(page, f"Onverwachte fout: {e}")
+
+
+
+def show_error_page(page, error_message):
+    """
+    Toont een foutpagina met het opgegeven foutbericht.
+    """
+    error_view = ft.View(
+        "/error",
         controls=[
-            ft.Text(message, size=50, weight=ft.FontWeight.BOLD),
-            ft.Text(f"{title} Skill", size=20),
-            ft.Column(data_controls, spacing=10),  # Dynamically generated content
-            ft.ElevatedButton("Back to Home", on_click=lambda _: navigate_to_home(page)),
-        ],
-    )
-    page.views.clear()
-    page.views.append(new_view)
-    page.update()
-
-# Function for the Hello World page
-def show_hello_world_page(page, message):
-    hello_world_view = ft.View(
-        "/hello_world",  # Make sure to pass the correct page name
-        controls=[
-            ft.Column(
-                [
-                    ft.Text("Hello World Skill", size=50, weight=ft.FontWeight.BOLD, color="blue"),
-                    ft.Text(message, size=20, weight=ft.FontWeight.NORMAL),
-                    ft.ElevatedButton(
-                        "Back to Home",
-                        on_click=lambda _: navigate_to_home(page),  # Back button to home
-                    ),
-                ],
-                alignment=ft.MainAxisAlignment.CENTER,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ft.Text(error_message, size=16, color="red"),
+            ft.ElevatedButton(
+                "Terug naar Home",
+                on_click=lambda _: navigate_to_home(page),
             ),
         ],
     )
-    page.views.append(hello_world_view)  # Add the new view to the page
-    page.update()  # Update the page to apply changes
+    page.views.clear()
+    page.views.append(error_view)
+    page.update()
 
-# Function to navigate to home page
+
+# Functie voor navigatie naar home pagina
 def navigate_to_home(page):
-    # Function to reload the home screen
+    # Functie voor het opnieuw laden van het homescreen
     update_home_page(page)
 
-def update_home_page(page):
-    time_text = ft.Text(size=150, color="white", weight=ft.FontWeight.BOLD)
 
-    # Background settings
-    background_container = ft.Container(
+def update_home_page(page):
+    tijd_text = ft.Text(size=150, color="white", weight=ft.FontWeight.BOLD)
+
+    # Achtergrond instellingen
+    achtergrond_container = ft.Container(
         expand=True,
-        image_src=WALLPAPER,
+        image_src=ACHTERGROND_AFBEELDING,
         image_fit=ft.ImageFit.COVER,
     )
 
     overlay = ft.Container(
         content=ft.Column(
             [
-                time_text,
+                tijd_text,
             ],
             horizontal_alignment=ft.CrossAxisAlignment.END,
             spacing=10,
@@ -166,34 +243,59 @@ def update_home_page(page):
     home_view = ft.View(
         "/",
         controls=[
-            ft.Stack([background_container, overlay], expand=True),
+            ft.Stack([achtergrond_container, overlay], expand=True),
         ],
     )
-    page.views.clear()  # Remove old views
-    page.views.append(home_view)  # Add the home view
-    page.update()  # Update the page
+    page.views.clear()  # Verwijder oude views
+    page.views.append(home_view)  # Voeg de home view toe
+    page.update()  # Update de pagina
 
-    # Update time
+    # Bijwerken van tijd
     def update_time():
         while True:
             current_time = datetime.datetime.now().strftime("%H:%M:%S")
-            time_text.value = current_time
+            tijd_text.value = current_time
             page.update()
             time.sleep(1)
 
     threading.Thread(target=update_time, daemon=True).start()
 
-# Main Flet app setup
+
+# Luister naar GUI WebSocket
+def listen_to_ovos_gui(ws, page, message_store):
+    try:
+        while True:
+            response = ws.recv()  # Ontvang berichten van de WebSocket
+            if response:
+                data = json.loads(response)
+                process_gui_message(data, page, message_store)  # Voeg message_store toe als argument
+    except Exception as e:
+        log_message(f"Fout bij ontvangen van bericht: {e}")
+
+
+
 def main(page):
     page.title = "OVOS Homescreen"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    
+    
+    # Voeg een route handler toe om navigatie naar "/" te verwerken
+    def route_handler(route):
+        if route == "/":
+            update_home_page(page)  # Laad de homepagina
+
+    # Stel de route handler in
+    page.on_route_change = lambda e: route_handler(e.route)
+
+    # Start op de homepagina
     update_home_page(page)
 
-    # Connect to WebSocket and listen for messages
+    # Verbinding met WebSocket en luisteren naar berichten
     ws = connect_to_ovos_gui()
     if ws:
         threading.Thread(target=listen_to_ovos_gui, args=(ws, page, {}), daemon=True).start()
 
-# Start the Flet app
+
+# Start de Flet app
 ft.app(target=main)
