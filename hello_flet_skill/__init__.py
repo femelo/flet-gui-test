@@ -7,8 +7,14 @@ class HelloWorldSkill(OVOSSkill):
 
     @intent_handler("flet.intent")
     def handle_hello_world(self, message):
-        message_text = "Hello world, this is a new GUI"
+        # The message you want to display and speak
+        message_text = "Hello world"
         
-        self.gui.show_page("hello_world", message_text)  # Dit genereert een WebSocket-bericht
+        # Set the data in the GUI session
+        self.gui['message_text'] = message_text  # Place the message in sessionData
 
+        # Call the generic page with the correct data (data contains the message)
+        self.gui.show_page("hallo_flet")  # The page will be loaded with sessionData available
+
+        # Optionally: Speak the message as a confirmation
         self.speak(message_text)
