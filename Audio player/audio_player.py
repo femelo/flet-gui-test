@@ -1,4 +1,6 @@
 # based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
+# TO DO: the play pause is not working right the first time. Also the prev button should reset the current track and after two presses go back to the previous track.
+
 
 import os
 from datetime import timedelta
