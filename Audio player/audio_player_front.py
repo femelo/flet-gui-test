@@ -1,4 +1,4 @@
-# based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
+# Based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
 
 import flet as ft
 from audio_player import AudioPlayer
@@ -7,7 +7,7 @@ def main(page: ft.Page):
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
-    # Playlist (lijst van audio URL's met bijbehorende metadata)
+    # Playlist (list of audio URLs with associated metadata)
     playlist = [
         {
             "url": "https://samplesongs.netlify.app/Bad%20Liar.mp3",
@@ -29,18 +29,18 @@ def main(page: ft.Page):
         },
     ]
 
-    # Huidige track index
+    # Current track index
     current_track_index = 0
     current_track = playlist[current_track_index]
 
-    # Fallback afbeelding
+    # Fallback image
     cover_image = current_track["image"] or "https://via.placeholder.com/200?text=No+Cover"
 
-    # Container voor songinformatie
+    # Container for song information
     song_info = ft.Container(
         content=ft.Column(
             [
-                ft.Container(  # Gebruik een container om de afbeelding te centreren
+                ft.Container(  # Use a container to center the image
                     content=ft.Image(
                         src=cover_image,
                         width=200,
@@ -50,22 +50,22 @@ def main(page: ft.Page):
                     alignment=ft.alignment.center,
                 ),
                 ft.Text(
-                    f"Artiest: {current_track['artist']}",
+                    f"Artist: {current_track['artist']}",
                     size=16,
                     weight=ft.FontWeight.BOLD,
                     width=300,
                     text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Text(
-                    f"Titel: {current_track['title']}",
+                    f"Title: {current_track['title']}",
                     size=14,
                     width=300,
                     text_align=ft.TextAlign.CENTER,
-                    italic=False,  # Titel niet cursief
+                    italic=False,  # Title not italicized
                 ),
             ],
-            alignment=ft.MainAxisAlignment.CENTER,  # Centreer alles verticaal in de kolom
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,  # Centreer alles horizontaal
+            alignment=ft.MainAxisAlignment.CENTER,  # Center everything vertically in the column
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,  # Center everything horizontally
             spacing=10,
         ),
         padding=10,
@@ -73,10 +73,10 @@ def main(page: ft.Page):
         alignment=ft.alignment.center,
     )
 
-    # Container voor de achtergrond met transparantie (dit wordt eenmaal ingesteld)
+    # Container for the background with transparency (set once)
     background_container = ft.Container(
         content=ft.Image(
-            src=current_track["image"],  # Begin met de afbeelding van de eerste track
+            src=current_track["image"],  # Start with the first track's image
             width=page.width,
             height=page.height,
             fit=ft.ImageFit.COVER,
@@ -87,12 +87,12 @@ def main(page: ft.Page):
         opacity=0.2,
     )
 
-    # Functie om de achtergrond en songinformatie bij te werken
+    # Function to update the background and song information
     def update_song_info(new_song):
-        # Gebruik de afbeelding van de nieuwe track
+        # Use the image of the new track
         cover_image = new_song.get("image", "https://via.placeholder.com/300?text=No+Cover")
 
-        # Update de songinfo container
+        # Update the song info container
         song_info.content = ft.Column(
             [
                 ft.Container(
@@ -105,14 +105,14 @@ def main(page: ft.Page):
                     alignment=ft.alignment.center,
                 ),
                 ft.Text(
-                    f"Artiest: {new_song.get('artist', 'Onbekend')}",
+                    f"Artist: {new_song.get('artist', 'Unknown')}",
                     size=16,
                     weight=ft.FontWeight.BOLD,
                     width=300,
                     text_align=ft.TextAlign.CENTER,
                 ),
                 ft.Text(
-                    f"Titel: {new_song.get('title', 'Geen Titel')}",
+                    f"Title: {new_song.get('title', 'No Title')}",
                     size=14,
                     width=300,
                     text_align=ft.TextAlign.CENTER,
@@ -124,32 +124,32 @@ def main(page: ft.Page):
             spacing=10,
         )
 
-        # Update de achtergrond met de afbeelding van de nieuwe track
+        # Update the background with the new track's image
         background_container.content = ft.Image(
-            src=cover_image,  # Gebruik de afbeelding van de nieuwe track
+            src=cover_image,  # Use the new track's image
             width=page.width,
             height=page.height,
             fit=ft.ImageFit.COVER,
         )
 
-        # Update de pagina
+        # Refresh the page
         page.update()
 
-    # AudioPlayer toevoegen met de callback
+    # Add AudioPlayer with the callback
     audio_player = AudioPlayer(
         page=page,
         src=playlist[current_track_index]["url"],
         width=page.width / 2,
         playlist=playlist,
-        on_track_change=update_song_info,  # Callback bij wisselen van track
+        on_track_change=update_song_info,  # Callback when track changes
     )
 
-    # Voeg de stack toe met achtergrond en inhoud
+    # Add the stack with background and content
     page.add(
         ft.Stack(
             controls=[
-                background_container,  # Voeg de achtergrond eerst toe
-                ft.Column(  # Voeg de overige inhoud bovenop
+                background_container,  # Add the background first
+                ft.Column(  # Add the remaining content on top
                     [
                         song_info,
                         audio_player,
@@ -161,19 +161,19 @@ def main(page: ft.Page):
         )
     )
 
-    # Dynamisch aanpassen van de achtergrond bij wijziging van de pagina-grootte
+    # Dynamically adjust the background when the page size changes
     def on_resize(e):
-        # Zorg ervoor dat de achtergrond altijd dezelfde grootte heeft als de pagina
+        # Ensure the background always matches the page size
         background_container.width = page.width
         background_container.height = page.height
 
-        # Alleen de grootte van de achtergrond aanpassen, maar niet opnieuw laden
+        # Adjust only the size of the background without reloading
         background_container.content.width = page.width
         background_container.content.height = page.height
 
-        # Werk de pagina bij
+        # Refresh the page
         page.update()
 
-    page.on_resize = on_resize  # Koppel de resize-handler
+    page.on_resize = on_resize  # Bind the resize handler
 
 ft.app(main)
