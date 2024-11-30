@@ -19,7 +19,7 @@ def main(page: ft.Page):
             "url": "https://samplesongs.netlify.app/Death%20Bed.mp3",
             "title": "Death Bed",
             "artist": "Powfu ft. Beabadoobee",
-            "image": "https://atomageindustries.com/cdn/shop/products/PHFront.jpg",
+            "image": "https://cdn-images.dzcdn.net/images/cover/85380bbb010f1b675c29ac06c6e343ea/0x1900-000000-80-0-0.jpg",
         },
         {
             "url": "https://github.com/mdn/webaudio-examples/blob/main/audio-analyser/viper.mp3?raw=true",
