@@ -1,3 +1,5 @@
+# based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
+
 import os
 from datetime import timedelta
 import flet_core as ft
