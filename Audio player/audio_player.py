@@ -1,7 +1,6 @@
 # based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
 # TO DO: the play pause is not working right the first time. Also the prev button should reset the current track and after two presses go back to the previous track.
 
-
 import os
 from datetime import timedelta
 import flet_core as ft
@@ -14,10 +13,10 @@ class AudioPlayer(ft.Container):
         src_dir: str | None = None,
         src: str | None = None,
         curr_idx: int = 0,
+        playlist: list = None,
         font_family: str | None = None,
         controls_vertical_alignment: ft.MainAxisAlignment = ft.MainAxisAlignment.START,
         controls_horizontal_alignment: ft.CrossAxisAlignment = ft.CrossAxisAlignment.START,
-        playlist: list = None,
         on_track_change=None,
         *args,
         **kwargs,
@@ -30,13 +29,12 @@ class AudioPlayer(ft.Container):
         self.src_dir_contents = [track["url"] for track in self.playlist]
         self.curr_song_name = self.src_dir_contents[self.curr_idx]
         self.on_track_change = on_track_change
-        self.is_request_pending = False  # Prevent race conditions
-        self.duration = 0  # Audiolength
+        self.is_request_pending = False  # Voorkomt race conditions
+        self.audio_state = "stopped"  # Houdt de status van de audio bij
+        self.duration = 0  # Audiolengte
 
-        # Logging for debugging
         print(f"AudioPlayer initialized with playlist: {self.playlist}")
 
-        # Initialisatie van controls
         self.seek_bar = ft.ProgressBar(width=self.width)
         self.times_row = ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
         self.play_controls = ft.Container(
@@ -87,7 +85,7 @@ class AudioPlayer(ft.Container):
         self.page_.update()
 
         self.play_pause_btn = play_pause_btn
-        self.playing = False  # Keep the status of playing
+        self.playing = False  # Houd de speelstatus bij
 
     def prev_next_music(self, e):
         if self.is_request_pending:
@@ -97,23 +95,17 @@ class AudioPlayer(ft.Container):
         self.is_request_pending = True
     
         if e.control.data == "next":
-            # Next track
             self.curr_idx = (self.curr_idx + 1) % len(self.playlist)
         elif e.control.data == "prev":
-            # Reset the progress to 0 before proceeding tot the next track
             self.seek_bar.value = 0
             print(f"Resetting progress to 0 for the current track")
-            
-            # Check if there's a previous  track and go back to that track
             if self.curr_idx > 0:
                 self.curr_idx -= 1
             else:
                 print("No previous track, staying on current track.")
     
         print(f"Switching to track index: {self.curr_idx}")
-        # Update the track after reset of the progress
         self._update_track()
-
 
     def _update_track(self):
         new_song = self.playlist[self.curr_idx]
@@ -123,6 +115,7 @@ class AudioPlayer(ft.Container):
         print(f"Track updated to: {new_song['url']}")
         self.play_pause_btn.icon = ft.icons.PAUSE
         self.playing = True
+        self.audio_state = "playing"  # Bijwerken van audio state
         if self.on_track_change:
             self.on_track_change(new_song)
         self.page_.update()
@@ -133,15 +126,22 @@ class AudioPlayer(ft.Container):
             return
 
         self.is_request_pending = True
-        if self.playing:
+        if self.audio_state == "playing":
             print("Pausing audio...")
             self.audio.pause()
+            self.audio_state = "paused"
+        elif self.audio_state == "paused":
+            print("Resuming audio...")
+            self.audio.resume()
+            self.audio_state = "playing"
         else:
             print("Playing audio...")
             self.audio.play()
+            self.audio_state = "playing"
 
     def _on_audio_state_changed(self, e):
         print(f"Audio state changed: {e.data}")
+        self.audio_state = e.data  # Bijwerken van de interne state
         if e.data == "paused":
             self.play_pause_btn.icon = ft.icons.PLAY_ARROW
             self.playing = False
@@ -163,9 +163,10 @@ class AudioPlayer(ft.Container):
         self._update_times_row(elapsed_time, duration)
 
     def _update_controls(self, e):
-        if e.data == "0":  # Audio done
+        if e.data == "0":  # Audio voltooid
             self.play_pause_btn.icon = ft.icons.PLAY_ARROW
             self.playing = False
+            self.audio_state = "stopped"
             print("Audio completed; resetting play button.")
             self.page_.update()
             return
@@ -192,3 +193,4 @@ class AudioPlayer(ft.Container):
             ft.Text(time_duration, font_family=self.font_family),
         ]
         self.page_.update()
+
