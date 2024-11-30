@@ -1,3 +1,5 @@
+# based on Flet.dev audio player example https://github.com/flet-dev/flet-contrib/tree/main/flet_contrib/audio_player
+
 import flet as ft
 from audio_player import AudioPlayer
 
