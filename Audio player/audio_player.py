@@ -30,10 +30,10 @@ class AudioPlayer(ft.Container):
         self.src_dir_contents = [track["url"] for track in self.playlist]
         self.curr_song_name = self.src_dir_contents[self.curr_idx]
         self.on_track_change = on_track_change
-        self.is_request_pending = False  # Voorkomt race conditions
-        self.duration = 0  # Audiolengte
+        self.is_request_pending = False  # Prevent race conditions
+        self.duration = 0  # Audiolength
 
-        # Logging voor debuggen
+        # Logging for debugging
         print(f"AudioPlayer initialized with playlist: {self.playlist}")
 
         # Initialisatie van controls
@@ -87,7 +87,7 @@ class AudioPlayer(ft.Container):
         self.page_.update()
 
         self.play_pause_btn = play_pause_btn
-        self.playing = False  # Houd de speelstatus bij
+        self.playing = False  # Keep the status of playing
 
     def prev_next_music(self, e):
         if self.is_request_pending:
@@ -97,21 +97,21 @@ class AudioPlayer(ft.Container):
         self.is_request_pending = True
     
         if e.control.data == "next":
-            # Volgende track
+            # Next track
             self.curr_idx = (self.curr_idx + 1) % len(self.playlist)
         elif e.control.data == "prev":
-            # Reset de voortgang naar 0 voordat we naar de vorige track gaan
+            # Reset the progress to 0 before proceeding tot the next track
             self.seek_bar.value = 0
             print(f"Resetting progress to 0 for the current track")
             
-            # Controleer of er een vorige track is en ga terug naar die track
+            # Check if there's a previous  track and go back to that track
             if self.curr_idx > 0:
                 self.curr_idx -= 1
             else:
                 print("No previous track, staying on current track.")
     
         print(f"Switching to track index: {self.curr_idx}")
-        # Update de track na het resetten van de voortgang
+        # Update the track after reset of the progress
         self._update_track()
 
 
@@ -163,7 +163,7 @@ class AudioPlayer(ft.Container):
         self._update_times_row(elapsed_time, duration)
 
     def _update_controls(self, e):
-        if e.data == "0":  # Audio voltooid
+        if e.data == "0":  # Audio done
             self.play_pause_btn.icon = ft.icons.PLAY_ARROW
             self.playing = False
             print("Audio completed; resetting play button.")
