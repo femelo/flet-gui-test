@@ -174,6 +174,6 @@ def main(page: ft.Page):
         # Refresh the page
         page.update()
 
-    page.on_resize = on_resize  # Bind the resize handler
+    page.on_resized = on_resize  # Bind the resize handler
 
 ft.app(main)
