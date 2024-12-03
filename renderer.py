@@ -119,12 +119,13 @@ class Renderer:
             flet_page.views.append(_page)
             print(f"View {id(_page)} added.")
         self._flet_pages.append(flet_page)
-        print(f"Number of flet pages registered: {len(self._flet_pages)}")
+        print(f"Number of flet pages in registry: {len(self._flet_pages)}")
         flet_page.update()
 
     def deregister(self: Renderer, flet_page: Page) -> None:
         if flet_page in self._flet_pages:
             self._flet_pages.remove(flet_page)
+        print(f"Number of flet pages in registry: {len(self._flet_pages)}")
 
 
 global_renderer: Renderer = Renderer()

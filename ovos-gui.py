@@ -7,8 +7,10 @@ def main(page: ft.Page):
     page.title = "OVOS Flet GUI client"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    # Set deregistering upon disconnecting
+    page.on_disconnect = lambda _: global_client.deregister(page)
+    # Register page
     global_client.register(page)
 
-    # TODO: deregister upon destroying instance. How?
 # Start the Flet app
 ft.app(target=main)
