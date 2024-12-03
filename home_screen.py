@@ -1,8 +1,6 @@
 from __future__ import annotations
+import os
 from typing import Any, Optional, Dict
-from threading import Thread, Condition
-from datetime import datetime
-import time
 from flet import (
     Text,
     FontWeight,
@@ -17,86 +15,82 @@ from flet import (
 
 
 # Background image
-WALLPAPER = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png?text=Achtergrond+1"
-
-
-class Clock:
-    def __init__(self: Clock):
-        self._time: Optional[str] = None
-        self._condition: Condition = Condition()
-        self._quit: bool = False
-        self._thread: Thread = Thread(target=self.tick, daemon=True).start()
-
-    def __del__(self: Clock) -> None:
-        self._quit = True
-        time.sleep(1)
-        self._thread.join()
-
-    @property
-    def time(self: Clock) -> Optional[str]:
-        return self._time
-
-    @time.setter
-    def time(self: Clock, value: Optional[str]) -> None:
-        self._time = time
-
-    @property
-    def condition(self: Clock) -> Condition:
-        return self._condition
-
-    def wait(self: Clock, timeout: Optional[float] = None) -> bool:
-        self._condition.acquire()
-        return self._condition.wait(timeout=timeout)
-
-    def tick(self: Clock) -> None:
-        while not self._quit:
-            self._time = datetime.now().strftime("%H:%M:%S")
-            self.condition.acquire()
-            self._condition.notify_all()
-            self._condition.release()
-            time.sleep(1)
-
-
-# Global clock
-global_clock = Clock()
+WALLPAPER = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png"
 
 
 class HomeScreen:
     _is_page: bool = True  # required class attribute for correct loading
-    _clock: Clock = global_clock
 
     def __init__(
         self: HomeScreen,
         session_data: Optional[Dict[str, Any]],
     ):
         self._session_data: Dict[str, Any] = {
-            "wallpaper": WALLPAPER,
+            "notification": {},
+            "notification_model": [],
+            "system_connectivity": "offline",
+            "persistent_menu_hint": False,
+            "applications_model": [
+                {   "name": "OCP",
+                    "thumbnail": "/home/flavio/.cache/ovos_gui/ovos.common_play/OCP.png",
+                    "action": "ovos.common_play.OCP.homescreen.app",
+                },
+            ],
+            "apps_enabled": True,
+            "time_string": "",
+            "date_string": "",
+            "weekday_string": "",
+            "day_string": "",
+            "month_string": "",
+            "year_string": "",
+            "skill_info_enabled": False,
+            "skill_info_prefix": False,
+            "rtl_mode": 0,
+            "dateFormat": "MDY",
+            "wallpaper_path": "",
+            "selected_wallpaper": "default.jpg",
         }
         if session_data:
             self._session_data.update(session_data)
-        self._clock_text: Text = Text(
-            key="clock-time",
-            size=150,
+        self._element_keys = {
+            "time_string": "time_string",
+            "weekday_string": "full_date_string",
+            "day_string": "full_date_string",
+            "month_string": "full_date_string",
+            "year_string": "full_date_string",
+            "selected_wallpaper": "selected_wallpaper",
+        }
+        self._time_text: Text = Text(
+            key="time_string",
+            size=200,
+            color="white",
+            weight=FontWeight.BOLD
+        )
+        self._full_date_text: Text = Text(
+            key="full_date_string",
+            size=100,
             color="white",
             weight=FontWeight.BOLD
         )
         # Background settings
         self._background_container = Container(
-            key="wallpaper",
+            key="selected_wallpaper",
             expand=True,
-            image_src=self._session_data["wallpaper"],
+            image_src=self._session_data["selected_wallpaper"],
             image_fit=ImageFit.COVER,
+            alignment=alignment.center,
         )
         self._overlay = Container(
             content=Column(
                 [
-                    self._clock_text,
+                    self._time_text,
+                    self._full_date_text,
                 ],
-                horizontal_alignment=CrossAxisAlignment.END,
+                horizontal_alignment=CrossAxisAlignment.START,
                 spacing=10,
             ),
             padding=20,
-            alignment=alignment.Alignment(1, -1),
+            alignment=alignment.bottom_left,
         )
         self._view = View(
             "/home",
@@ -109,27 +103,52 @@ class HomeScreen:
     def page(self: HomeScreen) -> View:
         return self._view
 
+    @property
+    def full_date(self: HomeScreen) -> str:
+        weekday = self._session_data["weekday_string"][:3].title()
+        month = self._session_data["month_string"].title()
+        day = self._session_data["day_string"]
+        year = self._session_data["year_string"]
+        return f"{weekday} {month} {day}, {year}"
+
+    @property
+    def wallpaper_uri(self: HomeScreen) -> str:
+        wallpaper_path = self._session_data["wallpaper_path"]
+        selected_wallpaper = self._session_data["selected_wallpaper"]
+        if wallpaper_path:
+            return os.path.join(wallpaper_path, selected_wallpaper)
+        else:
+            return selected_wallpaper
+
     def update_session_data(
         self: HomeScreen,
         session_data: Dict[str, Any],
         renderer: Any
     ) -> None:
         self._session_data.update(session_data)
-        image_src = self._session_data["wallpaper"]
-        renderer.update_attributes(
-            route="/home",
-            key="wallpaper",
-            attributes={"image_src": image_src},
-        )
+        for key, value in session_data.items():
+            if key not in self._element_keys:
+                continue
+            element_key = self._element_keys[key]
+            if element_key == "full_date_string":
+                attr_name = "value"
+                attr_value = self.full_date
+                self._full_date_text.value = attr_value
+            elif element_key == "selected_wallpaper":
+                attr_name = "image_src"
+                attr_value = self.wallpaper_uri
+                self._background_container.image_src = attr_value
+            else:
+                attr_name = "value"
+                attr_value = value
+                self._time_text.value = attr_value
+            print(f"Updating {element_key} with {attr_name}={attr_value} in /home.")
+            renderer.update_attributes(
+                route="/home",
+                key=element_key,
+                attributes={attr_name: attr_value},
+            )
 
     def set(self: HomeScreen, renderer: Any) -> None:
-        # Update time
-        def update_time():
-            while HomeScreen._clock.wait():
-                renderer.update_attributes(
-                    route="/home",
-                    key="clock-time",
-                    attributes={"value": HomeScreen._clock.time},
-                )
-
-        Thread(target=update_time, daemon=True).start()
+        # No callback to set
+        pass

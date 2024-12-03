@@ -31,6 +31,7 @@ class Renderer:
             element = self.find_element(flet_page, key)
             if element is None:
                 break
+            print(f"Found element to update: {element}.")
             for attr_name, value in attributes.items():
                 setattr(element, attr_name, value)
             element.update()

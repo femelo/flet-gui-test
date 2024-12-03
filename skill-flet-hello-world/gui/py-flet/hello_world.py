@@ -67,6 +67,12 @@ class HelloWorldPage:
     ) -> None:
         self._session_data.update(session_data)
         for key, value in self._session_data.items():
+            if key == "title":
+                self._title.value = value
+            elif key == "text":
+                self._text.value = value
+            else:
+                pass
             renderer.update_attributes(
                 route="/hello_world",
                 key=key,
