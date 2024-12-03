@@ -158,11 +158,12 @@ class GuiList(BaseModel):
         if page is None:
             print("Unable update a page that has not been built.")
             return
+        valid_session_data = {}
         for key in session_data.keys():
-            if key not in page._session_data:
-                print(f"Attribute {key} does not exist for the shown page.")
-                del session_data[key]
-        page.update_session_data(
-            session_data=session_data,
-            renderer=self.renderer,
-        )
+            if key in page._session_data:
+                valid_session_data[key] = session_data[key]
+        if valid_session_data:
+            page.update_session_data(
+                session_data=valid_session_data,
+                renderer=self.renderer,
+            )
