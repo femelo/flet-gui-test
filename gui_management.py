@@ -17,6 +17,10 @@ class PageLoader(BaseModel):
     renderer: Renderer
     _page_object: Optional[Any] = None
 
+    @property
+    def page(self: PageLoader) -> Any:
+        return self._page_object
+
     def build(self: PageLoader) -> None:
         # Load module
         spec = importlib.util.spec_from_file_location(self.name, self.uri)
@@ -69,7 +73,7 @@ class PageLoader(BaseModel):
 
     def update(self: PageLoader, session_data: Dict[str, Any]) -> None:
         self.session_data.update(session_data)
-        # NOTE: this method must be implemented
+        # NOTE: this method is assumed as implemented
         self._page_object.update_session_data(session_data)
 
     def show(self: PageLoader) -> None:
@@ -90,6 +94,7 @@ class GuiList(BaseModel):
     model_config = ConfigDict(strict=False, arbitrary_types_allowed=True)
     namespace: Optional[str]
     renderer: Renderer
+    _shown_page: int = 0
     _pages: List[PageLoader] = []
 
     def insert(
@@ -140,3 +145,24 @@ class GuiList(BaseModel):
     ) -> None:
         if 0 <= position < len(self._pages):
             self._pages[position].show()
+            self._shown_page = position
+
+    def update(
+        self: GuiList,
+        session_data: Dict[str, Any],
+    ) -> None:
+        if self._shown_page > len(self._pages):
+            print("Last shown page out of range.")
+            return
+        page = self._pages[self._shown_page].page
+        if page is None:
+            print("Unable update a page that has not been built.")
+            return
+        for key in session_data.keys():
+            if key not in page._session_data:
+                print(f"Attribute {key} does not exist for the shown page.")
+                del session_data[key]
+        page.update_session_data(
+            session_data=session_data,
+            renderer=self.renderer,
+        )

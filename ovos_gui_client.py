@@ -217,10 +217,6 @@ class OVOSGuiClient:
             )
             if show:
                 self._gui_list[namespace].show(position)
-                self.send_focus_event(
-                    namespace=namespace,
-                    index=position,
-                )
 
     def handle_gui_list_move(
         self: OVOSGuiClient,
@@ -268,14 +264,13 @@ class OVOSGuiClient:
     def handle_session_set(
         self: OVOSGuiClient,
         namespace: str,
-        data: Mapping[str, Any],
+        session_data: Mapping[str, Any],
     ) -> None:
         if namespace not in self._session:
             self._session[namespace] = {}
-        self._session[namespace].update(data)
+        self._session[namespace].update(session_data)
         if namespace in self._gui_list:
-            # self._gui_list[namespace].update()?
-            pass
+            self._gui_list[namespace].update(session_data)
 
     def handle_session_delete(
         self: OVOSGuiClient,
