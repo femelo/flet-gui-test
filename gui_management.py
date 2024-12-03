@@ -33,7 +33,7 @@ class PageLoader(BaseModel):
             ),
             dir(module),
         )
-        # Save just views or wrappers with class attribute 'is_page'
+        # Save just views or wrappers with class attribute '_is_page'
         for obj_name in object_names:
             obj = getattr(module, obj_name)
             if isinstance(obj, View):

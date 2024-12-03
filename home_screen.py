@@ -99,7 +99,7 @@ class HomeScreen:
             alignment=alignment.Alignment(1, -1),
         )
         self._view = View(
-             "/home",
+            "/home",
             controls=[
                 Stack([self._background_container, self._overlay], expand=True),
             ],
