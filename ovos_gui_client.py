@@ -256,10 +256,10 @@ class OVOSGuiClient:
             print(f"Focus shifted to view {page_index}")
             if namespace in self._gui_list:
                 self._gui_list[namespace].show(page_index)
-                self.send_focus_event(
-                    namespace=namespace,
-                    index=page_index,
-                )
+                # self.send_focus_event(
+                #     namespace=namespace,
+                #     index=page_index,
+                # )
 
     def handle_session_set(
         self: OVOSGuiClient,
