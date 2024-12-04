@@ -13,5 +13,5 @@ def main(page: ft.Page):
     global_client.register(page)
 
 # Start the Flet app
-ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+ft.app(target=main, view=ft.AppView.WEB_BROWSER, web_renderer=ft.WebRenderer.HTML)
 

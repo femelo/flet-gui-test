@@ -1,4 +1,5 @@
 from __future__ import annotations
+import shutil
 import os
 from typing import Any, Optional, Dict
 from flet import (
@@ -8,6 +9,7 @@ from flet import (
     ImageFit,
     Column,
     CrossAxisAlignment,
+    MainAxisAlignment,
     alignment,
     Stack,
     View,
@@ -78,7 +80,6 @@ class HomeScreen:
             expand=True,
             image_src=self._session_data["selected_wallpaper"],
             image_fit=ImageFit.COVER,
-            alignment=alignment.center,
         )
         self._overlay = Container(
             content=Column(
@@ -86,11 +87,11 @@ class HomeScreen:
                     self._time_text,
                     self._full_date_text,
                 ],
+                alignment=MainAxisAlignment.END,
                 horizontal_alignment=CrossAxisAlignment.START,
                 spacing=10,
             ),
             padding=20,
-            alignment=alignment.bottom_left,
         )
         self._view = View(
             "/home",
@@ -116,9 +117,12 @@ class HomeScreen:
         wallpaper_path = self._session_data["wallpaper_path"]
         selected_wallpaper = self._session_data["selected_wallpaper"]
         if wallpaper_path:
-            return os.path.join(wallpaper_path, selected_wallpaper)
-        else:
-            return selected_wallpaper
+            # Hack to workaround the way Flet serves figures
+            shutil.copy(
+                os.path.join(wallpaper_path, selected_wallpaper),
+                "assets/",
+            )
+        return selected_wallpaper
 
     def update_session_data(
         self: HomeScreen,
