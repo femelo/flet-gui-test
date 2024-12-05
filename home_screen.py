@@ -6,18 +6,31 @@ from flet import (
     Text,
     FontWeight,
     Container,
+    Image,
     ImageFit,
     Column,
     CrossAxisAlignment,
     MainAxisAlignment,
+    Row,
     alignment,
     Stack,
     View,
 )
 
-
 # Background image
 WALLPAPER = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png"
+
+# Weather icon mapping
+WEATHER_ICONS = {
+    0: "icons/sun.svg",
+    1: "icons/partial_clouds.svg",
+    2: "icons/clouds.svg",
+    3: "icons/rain.svg",
+    4: "icons/rain.svg",
+    5: "icons/storm.svg",
+    6: "icons/snow.svg",
+    7: "icons/fog.svg",
+}
 
 
 class HomeScreen:
@@ -51,6 +64,8 @@ class HomeScreen:
             "dateFormat": "MDY",
             "wallpaper_path": "",
             "selected_wallpaper": "default.jpg",
+            "weather_code": None,
+            "weather_temp": None,
         }
         if session_data:
             self._session_data.update(session_data)
@@ -74,12 +89,38 @@ class HomeScreen:
             color="white",
             weight=FontWeight.BOLD
         )
+        self._weather_icon: Image = Image(
+            src=self._get_weather_icon_src(),
+            width=100,
+            height=100,
+            fit=ImageFit.CONTAIN,
+        )
+        self._weather_temp_text: Text = Text(
+            self._format_weather_temp(),
+            size=50,
+            color="white",
+            weight=FontWeight.BOLD,
+        )
+
         # Background settings
         self._background_container = Container(
             key="selected_wallpaper",
             expand=True,
             image_src=self._session_data["selected_wallpaper"],
             image_fit=ImageFit.COVER,
+        )
+        self._weather_container = Container(
+            content=Row(
+                [
+                    self._weather_icon,
+                    self._weather_temp_text,
+                ],
+                alignment="end",
+                vertical_alignment="center",
+                spacing=10,
+            ),
+            padding=20,
+            alignment=alignment.top_right,
         )
         self._overlay = Container(
             content=Column(
@@ -96,9 +137,30 @@ class HomeScreen:
         self._view = View(
             "/home",
             controls=[
-                Stack([self._background_container, self._overlay], expand=True),
+                Stack(
+                    [
+                        self._background_container,
+                        self._weather_container,
+                        self._overlay,
+                    ],
+                    expand=True,
+                ),
             ],
         )
+
+    def _get_weather_icon_src(self) -> str:
+        """Returns the local file path for the weather icon."""
+        weather_code = self._session_data.get("weather_code")
+        if weather_code is not None and weather_code in WEATHER_ICONS:
+            return WEATHER_ICONS[weather_code]
+        return "icons/default.svg"  # Fallback icon if weather_code is missing or invalid
+
+    def _format_weather_temp(self) -> str:
+        """Formats the temperature with °C."""
+        weather_temp = self._session_data.get("weather_temp")
+        if weather_temp is not None:
+            return f"{weather_temp}°C"
+        return ""
 
     @property
     def page(self: HomeScreen) -> View:
@@ -130,6 +192,11 @@ class HomeScreen:
         renderer: Any
     ) -> None:
         self._session_data.update(session_data)
+
+        # Update weather icon and temperature
+        self._weather_icon.src = self._get_weather_icon_src()
+        self._weather_temp_text.value = self._format_weather_temp()
+
         for key, value in session_data.items():
             if key not in self._element_keys:
                 continue
