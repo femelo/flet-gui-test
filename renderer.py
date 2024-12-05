@@ -10,13 +10,13 @@ class Renderer:
         self._master_pages: List[Optional[View]] = []
         self._flet_pages: List[Page] = []
 
-    def find_element(self: Renderer, element: Any, key: str) -> Any:
-        if "key" in dir(element) and element.key == key:
-            return element
-        for child in element._get_children():
-            returned_element = self.find_element(child, key)
-            if returned_element is not None:
-                return returned_element
+    def find_component(self: Renderer, component: Any, key: str) -> Any:
+        if "key" in dir(component) and component.key == key:
+            return component
+        for child in component._get_children():
+            returned_component = self.find_component(child, key)
+            if returned_component is not None:
+                return returned_component
         return None
 
     def update_attributes(
@@ -28,13 +28,50 @@ class Renderer:
         if route not in self._routes:
             return
         for flet_page in self._flet_pages:
-            element = self.find_element(flet_page, key)
-            if element is None:
+            component = self.find_component(flet_page, key)
+            if component is None:
                 break
-            print(f"Found element to update: {element}.")
+            print(f"Component to update: {component}.")
             for attr_name, value in attributes.items():
-                setattr(element, attr_name, value)
-            element.update()
+                setattr(component, attr_name, value)
+            component.update()
+            print(f"Updated component  : {component}.")
+
+    def close_component(
+        self: Renderer,
+        route: str,
+        component: Any,
+    ) -> None:
+        if route != self._routes[-1]:
+            return
+        for flet_page in self._flet_pages:
+            if isinstance(component, str):
+                component_object = getattr(flet_page.views[-1], component)
+                if component_object is None:
+                    break
+                print(f"Found component to close: {component_object}.")
+                component_object.open = False
+            else:
+                flet_page.close(component)
+        self.update()
+
+    def open_component(
+        self: Renderer,
+        route: str,
+        component: Any,
+    ) -> None:
+        if route != self._routes[-1]:
+            return
+        for flet_page in self._flet_pages:
+            if isinstance(component, str):
+                component_object = getattr(flet_page.views[-1], component)
+                if component_object is None:
+                    break
+                print(f"Found component to open: {component_object}.")
+                component_object.open = True
+            else:
+                flet_page.open(component)
+        self.update()
 
     def update(self: Renderer) -> None:
         for flet_page in self._flet_pages:
@@ -110,7 +147,8 @@ class Renderer:
 
     def register(self: Renderer, flet_page: Page) -> None:
         root_page = flet_page.views[0]
-        if root_page.route not in self._routes:
+        print(f"Root page: {root_page.route}.")
+        if root_page.route is not None and root_page.route not in self._routes:
             self._routes.append(root_page.route)
             self._master_pages.append(None)
         for master_page in self._master_pages:

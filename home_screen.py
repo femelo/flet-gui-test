@@ -2,22 +2,50 @@ from __future__ import annotations
 import shutil
 import os
 from typing import Any, Optional, Dict
+from functools import partial
 from flet import (
+    BottomAppBar,
+    colors,
     Text,
+    TextField,
     FontWeight,
     Container,
+    IconButton,
+    Icon,
+    icons,
     ImageFit,
+    Row,
     Column,
     CrossAxisAlignment,
     MainAxisAlignment,
-    alignment,
     Stack,
     View,
+    padding,
+    NavigationDrawer,
+    RoundedRectangleBorder,
+    ControlEvent,
+    BottomSheet,
 )
 
 
 # Background image
 WALLPAPER = "https://cdn.pixabay.com/photo/2016/06/02/02/33/triangles-1430105_1280.png"
+# Version text
+VERSION_TEXT = """
+OpenVoiceOS - Flet GUI Version: 1.0.0
+"""
+# License text
+LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
+LICENSE_TEXT = (
+    "\nLicensed under the Apache License, Version 2.0 (the 'License'); "
+    "you may not use this file except in compliance with the License.\n"
+    f"You may obtain a copy of the License at {LICENSE_URL}.\n\n"
+    "Unless required by applicable law or agreed to in writing, software distributed under "
+    "the License is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES OR CONDITIONS OF "
+    "ANY KIND, either express or implied.\n\n"
+    "See the License for the specific language governing permissions and limitations under "
+    "the License.\n\n"
+)
 
 
 class HomeScreen:
@@ -32,12 +60,7 @@ class HomeScreen:
             "notification_model": [],
             "system_connectivity": "offline",
             "persistent_menu_hint": False,
-            "applications_model": [
-                {   "name": "OCP",
-                    "thumbnail": "/home/flavio/.cache/ovos_gui/ovos.common_play/OCP.png",
-                    "action": "ovos.common_play.OCP.homescreen.app",
-                },
-            ],
+            "applications_model": [],
             "apps_enabled": True,
             "time_string": "",
             "date_string": "",
@@ -93,11 +116,200 @@ class HomeScreen:
             ),
             padding=20,
         )
+        # Bottom bar
+        self._menu_button = IconButton(
+            icons.MENU,
+            tooltip="Menu",
+            icon_color=colors.WHITE,
+            on_click=None,
+        )
+        self._bar = BottomAppBar(
+            content=Row(
+                controls=[
+                    self._menu_button,
+                    IconButton(
+                        icons.ARROW_BACK,
+                        tooltip="Back",
+                        icon_color=colors.WHITE
+                    ),
+                    TextField(
+                        label="Ask anything",
+                        color=colors.WHITE,
+                        bgcolor=colors.BLACK87,
+                        expand=True,
+                    ),
+                ],
+            ),
+            height=60,
+            bgcolor=colors.BLACK87,
+            padding=padding.symmetric(vertical=0, horizontal=10),
+        )
+        # Drawer menu options
+        self._collapse_button = IconButton(
+            icons.CLOSE,
+            tooltip="Close",
+            icon_color=colors.WHITE,
+            on_click=None,
+        )
+        self._option_style = {
+            "settings": {
+                "normal": {
+                    "icon": {
+                        "name": icons.SETTINGS_OUTLINED,
+                        "color": colors.WHITE,
+                    },
+                    "text": {
+                        "color": colors.WHITE,
+                        "weight": FontWeight.NORMAL,
+                    },
+                    "container": {
+                        "bgcolor": colors.TRANSPARENT,
+                    },
+                },
+                "on_hover": {
+                    "icon": {
+                        "name": icons.SETTINGS_ROUNDED,
+                        "color": colors.BLACK87,
+                    },
+                    "text": {
+                        "color": colors.BLACK87,
+                        "weight": FontWeight.BOLD,
+                    },
+                    "container": {
+                        "bgcolor": colors.WHITE,
+                    },
+                },
+            },
+            "about": {
+                "normal": {
+                    "icon": {
+                        "name": icons.INFO_OUTLINED,
+                        "color": colors.WHITE,
+                    },
+                    "text": {
+                        "color": colors.WHITE,
+                        "weight": FontWeight.NORMAL,
+                    },
+                    "container": {
+                        "bgcolor": colors.TRANSPARENT,
+                    },
+                },
+                "on_hover": {
+                    "icon": {
+                        "name": icons.INFO_ROUNDED,
+                        "color": colors.BLACK87,
+                    },
+                    "text": {
+                        "color": colors.BLACK87,
+                        "weight": FontWeight.BOLD,
+                    },
+                    "container": {
+                        "bgcolor": colors.WHITE,
+                    },
+                },
+            },
+        }
+        self._settings_option = Container(
+            content=Row(
+                controls=[
+                    Icon(
+                        key="settings-icon",
+                        **self._option_style["settings"]["normal"]["icon"],
+                    ),
+                    Text(
+                        "Settings",
+                        key="settings-text",
+                        size=20,
+                        **self._option_style["settings"]["normal"]["text"],
+                    ),
+                ],
+                expand=True,
+                spacing=20,
+            ),
+            key="settings-container",
+            padding=padding.symmetric(vertical=10, horizontal=30),
+            on_hover=None,
+            **self._option_style["settings"]["normal"]["container"],
+        )
+        self._about_option = Container(
+            content=Row(
+                controls=[
+                    Icon(
+                        key="about-icon",
+                        **self._option_style["about"]["normal"]["icon"],
+                    ),
+                    Text(
+                        "About",
+                        key="about-text",
+                        size=20,
+                        **self._option_style["about"]["normal"]["text"],
+                    ),
+                ],
+                expand=True,
+                spacing=20,
+            ),
+            key="about-container",
+            padding=padding.symmetric(vertical=10, horizontal=30),
+            on_hover=None,
+            **self._option_style["about"]["normal"]["container"],
+        )
+        # Drawer object
+        self._drawer = NavigationDrawer(
+            on_dismiss=None,
+            on_change=None,
+            controls=[
+                Row(
+                    controls=[self._collapse_button],
+                    height=40,
+                    expand=True,
+                    alignment=MainAxisAlignment.END,
+                ),
+                self._settings_option,
+                self._about_option,
+            ],
+            bgcolor=colors.BLACK87,
+            indicator_color=colors.WHITE,
+            indicator_shape=RoundedRectangleBorder(radius=0),
+        )
+        # About banner
+        self._about_close_button = IconButton(
+            icons.CLOSE,
+            tooltip="Close",
+            icon_color=colors.WHITE,
+            on_click=None,
+        )
+        self._about_banner = BottomSheet(
+            content=Container(
+                content=Column(
+                    controls=[
+                        Row(
+                            controls=[self._about_close_button],
+                            alignment=MainAxisAlignment.END,
+                        ),
+                        Text("Client Information", size=24, color=colors.WHITE, weight=FontWeight.BOLD),
+                        Text(VERSION_TEXT, color=colors.WHITE),
+                        Text("License", size=24, color=colors.WHITE, weight=FontWeight.BOLD),
+                        Text(LICENSE_TEXT, color=colors.WHITE),
+                    ],
+                    expand=True,
+                ),
+                height=1000,
+                width=800,
+                expand=True,
+                bgcolor=colors.TRANSPARENT,
+                padding=padding.only(left=50, top=10, right=20, bottom=10),
+            ),
+            bgcolor=colors.BLACK87,
+        )
+        # Page (view)
         self._view = View(
             "/home",
             controls=[
                 Stack([self._background_container, self._overlay], expand=True),
             ],
+            appbar=self._bar,
+            drawer=self._drawer,
+            padding=0,
         )
 
     @property
@@ -154,5 +366,54 @@ class HomeScreen:
             )
 
     def set(self: HomeScreen, renderer: Any) -> None:
-        # No callback to set
-        pass
+        # Set callbacks
+        self._menu_button.on_click = lambda _: renderer.open_component(
+            route="/home",
+            component="drawer",
+        )
+
+        def on_hover(event: ControlEvent, option: str) -> None:
+            entered: bool = (event.data == "true")
+            style_key = "on_hover" if entered else "normal"
+            renderer.update_attributes(
+                route="/home",
+                key=f"{option}-container",
+                attributes=self._option_style[option][style_key]["container"],
+            )
+            renderer.update_attributes(
+                route="/home",
+                key=f"{option}-icon",
+                attributes=self._option_style[option][style_key]["icon"],
+            )
+            renderer.update_attributes(
+                route="/home",
+                key=f"{option}-text",
+                attributes=self._option_style[option][style_key]["text"],
+            )
+
+        def on_dismiss(event: ControlEvent) -> None:
+            renderer.close_component(
+                route="/home",
+                component="drawer",
+            )
+
+        self._collapse_button.on_click = on_dismiss
+        self._drawer.on_dismiss = on_dismiss
+
+        self._settings_option.on_hover = partial(on_hover, option="settings")
+        self._about_option.on_hover = partial(on_hover, option="about")
+
+        def about_on_click(event: ControlEvent) -> None:
+            on_dismiss(event)
+            renderer.open_component(
+                route="/home",
+                component=self._about_banner,
+            )
+
+        self._about_option.on_click = about_on_click
+
+        self._about_close_button.on_click = lambda _ : renderer.close_component(
+            route="/home",
+            component=self._about_banner,
+        )
+
