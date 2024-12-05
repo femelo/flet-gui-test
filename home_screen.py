@@ -99,6 +99,8 @@ class HomeScreen:
             "month_string": "full_date_string",
             "year_string": "full_date_string",
             "selected_wallpaper": "selected_wallpaper",
+            "weather_code": "weather_icon",
+            "weather_temp": "weather_temp",
         }
         self._time_text: Text = Text(
             key="time_string",
@@ -112,19 +114,21 @@ class HomeScreen:
             color="white",
             weight=FontWeight.BOLD
         )
+        # Weather icon and text
         self._weather_icon: Image = Image(
-            src=self._get_weather_icon_src(),
+            src=self.weather_icon_src,
+            key="weather_icon",
             width=100,
             height=100,
             fit=ImageFit.CONTAIN,
         )
         self._weather_temp_text: Text = Text(
-            self._format_weather_temp(),
+            self.weather_temperature,
+            key="weather_temp",
             size=50,
             color="white",
             weight=FontWeight.BOLD,
         )
-
         # Background settings
         self._background_container = Container(
             key="selected_wallpaper",
@@ -360,20 +364,6 @@ class HomeScreen:
             padding=0,
         )
 
-    def _get_weather_icon_src(self) -> str:
-        """Returns the local file path for the weather icon."""
-        weather_code = self._session_data.get("weather_code")
-        if weather_code is not None and weather_code in WEATHER_ICONS:
-            return WEATHER_ICONS[weather_code]
-        return "icons/default.svg"  # Fallback icon if weather_code is missing or invalid
-
-    def _format_weather_temp(self) -> str:
-        """Formats the temperature with °C."""
-        weather_temp = self._session_data.get("weather_temp")
-        if weather_temp is not None:
-            return f"{weather_temp}°C"
-        return ""
-
     @property
     def page(self: HomeScreen) -> View:
         return self._view
@@ -398,29 +388,48 @@ class HomeScreen:
             )
         return selected_wallpaper
 
+    @property
+    def weather_icon_src(self) -> str:
+        """Returns the local file path for the weather icon."""
+        weather_code = self._session_data.get("weather_code")
+        if weather_code is not None and weather_code in WEATHER_ICONS:
+            return WEATHER_ICONS[weather_code]
+        return "icons/default.svg"  # Fallback icon if weather_code is missing or invalid
+
+    @property
+    def weather_temperature(self) -> str:
+        """Formats the temperature with °C."""
+        weather_temp = self._session_data.get("weather_temp")
+        if weather_temp is not None:
+            return f"{weather_temp} °C"
+        return ""
+
     def update_session_data(
         self: HomeScreen,
         session_data: Dict[str, Any],
         renderer: Any
     ) -> None:
         self._session_data.update(session_data)
-
-        # Update weather icon and temperature
-        self._weather_icon.src = self._get_weather_icon_src()
-        self._weather_temp_text.value = self._format_weather_temp()
-
         for key, value in session_data.items():
             if key not in self._element_keys:
                 continue
             element_key = self._element_keys[key]
-            if element_key == "full_date_string":
+            if element_key == "full_date_string":  # full date
                 attr_name = "value"
                 attr_value = self.full_date
                 self._full_date_text.value = attr_value
-            elif element_key == "selected_wallpaper":
+            elif element_key == "selected_wallpaper":  # wallpaper
                 attr_name = "image_src"
                 attr_value = self.wallpaper_uri
                 self._background_container.image_src = attr_value
+            elif element_key == "weather_icon":  # weather icon
+                attr_name = "src"
+                attr_value = self.weather_icon_src
+                self._weather_icon.src = attr_value
+            elif element_key == "weather_temp":  # weather temperature
+                attr_name = "value"
+                attr_value = self.weather_temperature
+                self._weather_temp_text.value = attr_value
             else:
                 attr_name = "value"
                 attr_value = value
